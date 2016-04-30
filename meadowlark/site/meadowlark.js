@@ -1,4 +1,5 @@
 var express = require('express');
+var fortune = require('./lib/fortune.js');
 
 var app = express();
 
@@ -15,7 +16,7 @@ app.get('/', function(req, res){
 });
 
 app.get('/about', function(req, res){
-    res.render('about');
+    res.render('about', { fortune: fortune.getFortune() });
 });
 
 //커스텀 404페이지
