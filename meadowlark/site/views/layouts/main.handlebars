@@ -6,11 +6,13 @@
     {{#if showTests}}
         <link rel="stylesheet" href="/vendor/mocha.css">
     {{/if}}
+    <link rel="stylesheet" href="/vendor/bootstrap/dist/css/bootstrap.css">
   </head>
   <body>
       <header><img src="/img/logo.jpg" alt="Meadowlark Travel Logo" /></header>
       {{{body}}}
       <script src="//code.jquery.com/jquery-2.0.2.min.js"></script>
+      <script src="/vendor/bootstrap/dist/js/bootstrap.min.js"></script>
       {{{_sections.jquery}}}
       {{#if showTests}}
           <div id="mocha"></div>

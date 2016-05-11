@@ -1,5 +1,6 @@
 var express = require('express');
 var fortune = require('./lib/fortune.js');
+var formidable = require('formidable');
 
 var app = express();
 
@@ -20,6 +21,8 @@ app.set('view engine', 'handlebars');
 app.set('port', process.env.PORT || 3000);
 
 app.use(express.static(__dirname + '/public'));
+
+app.use(require('body-parser').urlencoded({ extneded: true }));
 
 app.use(function(req, res, next){
     res.locals.showTests = app.get('env') !== 'production' && req.query.test === '1';
@@ -62,6 +65,45 @@ app.get('/tours/hood-river', function(req, res){
 
 app.get('/tours/request-group-rate', function(req, res){
     res.render('tours/request-group-rate');
+});
+
+app.get('/newsletter', function(req, res){
+    res.render('newsletter', {csrf: 'CSRF token goes here'});
+});
+
+app.post('/process', function(req, res){
+    /*
+    console.log('Form (from querystring): ' + req.query.form);
+    console.log('CSRF token (from hidden from field): ' + req.body._csrf);
+    console.log('Name (from visible form field): ' + req.body.name);
+    console.log('Email (from visible form field): ' + req.body.email);
+    */
+    if(req.xhr || req.accepts('json,html')==='json'){
+        res.send({success: true});
+        // (에러가 있다면 { error: 'error description' }을 보냅니다)
+    } else {
+        res.redirect(303, '/thank-you');
+        // (에러가 있다면 에러 페이지로 리다이렉트합니다.)
+    }
+});
+
+app.get('/contest/vacation-photo', function(req, res){
+    var now = new Date();
+    res.render('contest/vacation-photo', {
+        year: now.getFullYear(), month: now.getMonth()
+    });
+});
+
+app.post('/contest/vacation-photo/:year/:month', function(req, res){
+    var form = new formidable.IncomingForm();
+    form.parse(req, function(err, fields, files){
+        if(err) return res.redirect(303, '/error');
+        console.log('received fields:');
+        console.log(fields);
+        console.log('received files:');
+        console.log(files);
+        res.redirect(303, '/thank-you');
+    });
 });
 
 //커스텀 404페이지
