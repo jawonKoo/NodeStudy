@@ -3,3 +3,6 @@ node_modules
 
 #인증서 관련
 meadowlark/site/credentials.js
+
+#업로드 폴더
+meadowlark/site/public/uploads
