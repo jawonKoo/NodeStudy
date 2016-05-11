@@ -1,3 +1,5 @@
 #npm에서 설치할 패키지를 무시합니다.
 node_modules
 
+#인증서 관련
+meadowlark/site/credentails.js
