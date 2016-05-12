@@ -1,4 +1,5 @@
 var express = require('express');
+var connect = require('connect');
 var fortune = require('./lib/fortune.js');
 var formidable = require('formidable');
 var credentials = require('./credentials.js');
@@ -12,6 +13,8 @@ var VALID_EMAIL_REGEX = new RegExp(
     '(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$'
 );
 
+var emailService = require('./lib/email.js')(credentials);
+
 var handlebars = require('express-handlebars').create({
     defaultLayout:'main',
     helpers: {
@@ -23,10 +26,24 @@ var handlebars = require('express-handlebars').create({
     }
 
 });
+
 app.engine('handlebars', handlebars.engine);
 app.set('view engine', 'handlebars');
 
 app.set('port', process.env.PORT || 3000);
+
+switch (app.get('env')) {
+    case 'development':
+        app.use(require('morgan')('dev'));
+        break;
+    case 'production':
+        app.use(require('express-logger')({
+            path: __dirname + '/log/requests.log'
+        }));
+        break;
+    default:
+
+}
 
 app.use(express.static(__dirname + '/public'));
 
@@ -42,12 +59,24 @@ app.use(require('express-session')({
 
 app.use(function(req, res, next){
     res.locals.showTests = app.get('env') !== 'production' && req.query.test === '1';
+    next();
+});
+
+app.use(function(req, res, next){
     if(!res.locals.partials) res.locals.partials = {};
     res.locals.partials.weatherContext = getWeatherData();
+    next();
+});
 
+app.use(function(req, res, next){
     //플래시 메세지가 있다면 콘텍스트에 전달한 다음 지웁니다.
     res.locals.flash = req.session.flash;
     delete req.session.flash;
+    next();
+});
+
+app.use(function(req, res, next){
+    req.session.cart = {};
     next();
 });
 
@@ -65,7 +94,8 @@ app.use('/upload', function(req, res, next){
 
 
 app.get('/', function(req, res){
-  res.render('home');
+
+    res.render('home');
 });
 
 app.get('/about', function(req, res){
@@ -172,6 +202,36 @@ app.post('/contest/vacation-photo/:year/:month', function(req, res){
     });
 });
 
+app.get('/cart/checkout', function(req, res, next){
+    var cart = req.session.cart;
+    if(!cart) next();
+    res.render('cart-checkout');
+});
+
+app.post('/cart/checkout', function(req, res, next){
+    var cart = req.session.cart;
+    if(!cart) next(new Error('Cart does not exist.'));
+    var name = req.body.name || '', email = req.body.email || '';
+    //유효성 검사
+    if(!email.match(VALID_EMAIL_REGEX)){
+        return res.next(new Error('Invailid email address.'));
+    }
+    //랜덤한 장바구니 ID를 부여합니다. 실무라면 데이터베이스 ID를 썼을 겁니다.
+    cart.number = Math.random().toString().replace(/^0\.0*/, '');
+    cart.billing = {
+        name: name,
+        email: email,
+    };
+    res.render('email/cart-thank-you',
+        { layout: null, cart: cart }, function(err,html){
+            if(err) console.log('error in email template');
+            emailService.send(cart.billing.email, 'Thank you for Book your Trip with Meadowlark', html);
+        }
+    );
+    res.render('cart-thank-you', { cart:cart });
+});
+
+
 //커스텀 404페이지
 app.use(function(req, res){
   res.status(404);
@@ -185,9 +245,22 @@ app.use(function(err, req, res, next){
   res.render('500');
 });
 
-app.listen(app.get('port'), function(){
-  console.log( 'Express started on http://kooserver.iptime.org:' + app.get('port') + '; press Ctrl + C to terminate.');
-});
+function startServer(){
+    app.listen(app.get('port'), function(){
+      console.log( 'Express started in ' + app.get('env') +
+        ' mode on http://kooserver.iptime.org:' + app.get('port') +
+        '; press Ctrl + C to terminate.');
+    });
+}
+
+if(require.main === module){
+    startServer();
+} else {
+    // require를 통해 애플리케이션을 모듈처럼 가져옵니다.
+    // 함수를 반환해서 서버를 생성합니다.
+    module.exports = startServer;
+}
+
 
 function NewsletterSignup(data){
 
